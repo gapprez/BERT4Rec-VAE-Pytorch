@@ -1,11 +1,10 @@
-from templates import set_template
-from datasets import DATASETS
-from dataloaders import DATALOADERS
-from models import MODELS
-from trainers import TRAINERS
-
 import argparse
 
+from dataloaders import DATALOADERS
+from datasets import DATASETS
+from models import MODELS
+from templates import set_template
+from trainers import TRAINERS
 
 parser = argparse.ArgumentParser(description='RecPlay')
 
@@ -29,7 +28,7 @@ parser.add_argument('--min_uc', type=int, default=5, help='Only keep users with 
 parser.add_argument('--min_sc', type=int, default=0, help='Only keep items with more than min_sc ratings')
 parser.add_argument('--split', type=str, default='leave_one_out', help='How to split the datasets')
 parser.add_argument('--dataset_split_seed', type=int, default=98765)
-parser.add_argument('--eval_set_size', type=int, default=500, 
+parser.add_argument('--eval_set_size', type=int, default=500,
                     help='Size of val and test set. 500 for ML-1m and 10000 for ML-20m recommended')
 
 ################
@@ -47,11 +46,11 @@ parser.add_argument('--test_batch_size', type=int, default=64)
 parser.add_argument('--train_negative_sampler_code', type=str, default='random', choices=['popular', 'random'],
                     help='Method to sample negative items for training. Not used in bert')
 parser.add_argument('--train_negative_sample_size', type=int, default=100)
-parser.add_argument('--train_negative_sampling_seed', type=int, default=7)
+parser.add_argument('--train_negative_sampling_seed', type=int, default=None)
 parser.add_argument('--test_negative_sampler_code', type=str, default='random', choices=['popular', 'random'],
                     help='Method to sample negative items for evaluation')
 parser.add_argument('--test_negative_sample_size', type=int, default=100)
-parser.add_argument('--test_negative_sampling_seed', type=int, default=7)
+parser.add_argument('--test_negative_sampling_seed', type=int, default=None)
 
 ################
 # Trainer
@@ -81,21 +80,23 @@ parser.add_argument('--best_metric', type=str, default='NDCG@10', help='Metric f
 parser.add_argument('--find_best_beta', type=bool, default=False,
                     help='If set True, the trainer will anneal beta all the way up to 1.0 and find the best beta')
 parser.add_argument('--total_anneal_steps', type=int, default=2000, help='The step number when beta reaches 1.0')
-parser.add_argument('--anneal_cap', type=float, default=0.2, help='Upper limit of increasing beta. Set this as the best beta found')
+parser.add_argument('--anneal_cap', type=float, default=0.2,
+                    help='Upper limit of increasing beta. Set this as the best beta found')
 
 ################
 # Model
 ################
 parser.add_argument('--model_code', type=str, default='bert', choices=MODELS.keys())
-parser.add_argument('--model_init_seed', type=int, default=11)
+parser.add_argument('--model_init_seed', type=int, default=None)
 # BERT #
-parser.add_argument('--bert_max_len', type=int, default=200, help='Length of sequence for bert')
+parser.add_argument('--bert_max_len', type=int, default=None, help='Length of sequence for bert')
 parser.add_argument('--bert_num_items', type=int, default=None, help='Number of total items')
-parser.add_argument('--bert_hidden_units', type=int, default=64, help='Size of hidden vectors (d_model)')
-parser.add_argument('--bert_num_blocks', type=int, default=2, help='Number of transformer layers')
-parser.add_argument('--bert_num_heads', type=int, default=2, help='Number of heads for multi-attention')
-parser.add_argument('--bert_dropout', type=float, default=0.2, help='Dropout probability to use throughout the model')
-parser.add_argument('--bert_mask_prob', type=float, default=1.0, help='Probability for masking items in the training sequence')
+parser.add_argument('--bert_hidden_units', type=int, default=None, help='Size of hidden vectors (d_model)')
+parser.add_argument('--bert_num_blocks', type=int, default=None, help='Number of transformer layers')
+parser.add_argument('--bert_num_heads', type=int, default=None, help='Number of heads for multi-attention')
+parser.add_argument('--bert_dropout', type=float, default=None, help='Dropout probability to use throughout the model')
+parser.add_argument('--bert_mask_prob', type=float, default=None,
+                    help='Probability for masking items in the training sequence')
 # DAE #
 parser.add_argument('--dae_num_items', type=int, default=None, help='Number of total items')
 parser.add_argument('--dae_num_hidden', type=int, default=0, help='Number of hidden layers in DAE')
@@ -114,7 +115,6 @@ parser.add_argument('--vae_dropout', type=float, default=0.5, help='Probability 
 ################
 parser.add_argument('--experiment_dir', type=str, default='experiments')
 parser.add_argument('--experiment_description', type=str, default='test')
-
 
 ################
 args = parser.parse_args()
