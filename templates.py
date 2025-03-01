@@ -6,8 +6,7 @@ def set_template(args):
         args.mode = 'train'
 
         # args.dataset_code = 'ml-' + input('Input 1 for ml-1m, 20 for ml-20m: ') + 'm'
-        args.dataset_code = 'Steam'
-        args.min_rating = 0 if args.dataset_code == 'ml-1m' else 4
+        args.min_rating = 0
         args.min_uc = 5
         args.min_sc = 0
         args.split = 'leave_one_out'
