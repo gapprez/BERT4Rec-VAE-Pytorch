@@ -15,11 +15,6 @@ def train():
     trainer = trainer_factory(args, model, train_loader, val_loader, test_loader, export_root)
     trainer.train()
 
-    dataset = dataset_factory(args)
-    model_name = '{}_min_rating{}-min_uc{}-min_sc{}-split{}.pth' \
-        .format(dataset.code(), dataset.min_rating, dataset.min_uc, dataset.min_sc, dataset.split)
-    model.save_model(model_name)
-
     test_model = True # (input('Test model with test dataset? y/[n]: ') == 'y')
     if test_model:
         trainer.test()
