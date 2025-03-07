@@ -5,7 +5,7 @@ def set_template(args):
         return
 
     elif args.template.startswith('train_bert'):
-        args.mode = 'train'
+        # args.mode = args.mode
 
         # args.dataset_code = 'ml-' + input('Input 1 for ml-1m, 20 for ml-20m: ') + 'm'
         args.min_rating = 0
