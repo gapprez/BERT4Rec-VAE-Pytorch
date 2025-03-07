@@ -18,7 +18,7 @@ class SteamDataset(AbstractDataset):
 
     def load_ratings_df(self):
         folder_path = self._get_rawdata_folder_path()
-        file_path = folder_path.joinpath('ratings.csv')
+        file_path = folder_path.joinpath('ratings_full.csv')
         df = pd.read_csv(file_path, sep=',', header=0)
         df.columns = ['uid', 'sid', 'rating', 'timestamp']
         return df

@@ -111,6 +111,12 @@ parser.add_argument('--vae_latent_dim', type=int, default=200, help="Dimension o
 parser.add_argument('--vae_dropout', type=float, default=0.5, help='Probability of input dropout in VAE')
 
 ################
+# GRS
+################
+parser.add_argument('--n_clusters', type=int, default=5, help='Number of clusters')
+parser.add_argument('--group_size', type=int, default=50, help='Size of cluster')
+
+################
 # Experiment
 ################
 parser.add_argument('--experiment_dir', type=str, default='experiments')
