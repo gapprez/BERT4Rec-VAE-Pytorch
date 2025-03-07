@@ -6,7 +6,7 @@ from datasets.base import AbstractDataset
 class SteamDataset(AbstractDataset):
     @classmethod
     def code(cls):
-        return "Steam"
+        return "steam"
 
     @classmethod
     def url(cls):
