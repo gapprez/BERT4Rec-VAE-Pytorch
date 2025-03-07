@@ -13,7 +13,6 @@ def set_template(args):
         args.min_sc = 0
         args.split = 'leave_one_out'
 
-        args.dataloader_code = 'bert_grs'
         batch = 128 if args.dataset_code == 'ml-1m' else 512
         args.train_batch_size = batch
         args.val_batch_size = batch
@@ -26,7 +25,6 @@ def set_template(args):
         args.test_negative_sample_size = 100
         args.test_negative_sampling_seed = 98765
 
-        args.trainer_code = 'bert_grs'
         args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         args.num_gpu = 1
         args.device_idx = '0'
