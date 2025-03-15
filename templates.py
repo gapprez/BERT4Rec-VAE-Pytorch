@@ -83,6 +83,10 @@ def set_template(args):
         args.dae_latent_dim = 200
         args.dae_dropout = 0.5
 
+        args.test_negative_sampler_code = 'random'
+        args.test_negative_sample_size = 100
+        args.test_negative_sampling_seed = 98765
+
     elif args.template.startswith('train_vae_search_beta'):
         args.min_rating = 0
         args.min_uc = 5
@@ -117,6 +121,10 @@ def set_template(args):
         args.vae_hidden_dim = 600
         args.vae_latent_dim = 200
         args.vae_dropout = 0.5
+
+        args.test_negative_sampler_code = 'random'
+        args.test_negative_sample_size = 100
+        args.test_negative_sampling_seed = 98765
     
     elif args.template.startswith('train_vae_give_beta'):
         args.min_rating = 0
@@ -153,4 +161,8 @@ def set_template(args):
         args.vae_hidden_dim = 600
         args.vae_latent_dim = 200
         args.vae_dropout = 0.5
+
+        args.test_negative_sampler_code = 'random'
+        args.test_negative_sample_size = 100
+        args.test_negative_sampling_seed = 98765
 

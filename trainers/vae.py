@@ -54,9 +54,10 @@ class VAETrainer(AbstractTrainer):
         return CE + self.beta * KLD
 
     def calculate_metrics(self, batch):
-        inputs, labels = batch
+        inputs, labels, negatives = batch
         logits, _, _ = self.model(inputs)
-        logits[inputs!=0] = -float("Inf") # IMPORTANT: remove items that were in the input
+        mask = (inputs != 0) & (negatives != 0)
+        logits[mask] = -float("Inf") # IMPORTANT: remove items that were in the input
         metrics = recalls_and_ndcgs_for_ks(logits, labels, self.metric_ks)
 
         # Annealing beta
