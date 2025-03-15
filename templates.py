@@ -97,7 +97,7 @@ def set_template(args):
         args.val_batch_size = batch
         args.test_batch_size = batch
 
-        args.trainer_code = 'vae'
+        # args.trainer_code = 'vae'
         args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         args.num_gpu = 1
         args.device_idx = '0'
@@ -132,7 +132,7 @@ def set_template(args):
         args.val_batch_size = batch
         args.test_batch_size = batch
 
-        args.trainer_code = 'vae'
+        # args.trainer_code = 'vae'
         args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         args.num_gpu = 1
         args.device_idx = '0'

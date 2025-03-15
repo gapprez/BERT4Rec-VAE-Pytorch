@@ -11,6 +11,7 @@ class AEGRSDataloader(AEDataloader):
     def __init__(self, args, dataset, group_strategy: GroupingStrategy):
         super().__init__(args, dataset)
         self.group_strategy = group_strategy
+        self.do_aggregation = args.do_aggregation
 
     @classmethod
     def code(cls):
@@ -24,15 +25,17 @@ class AEGRSDataloader(AEDataloader):
         return combined
 
     def _get_eval_dataset(self, mode):
-        if mode == 'val':
-            dataset = AEGRSEvalDataset(self.train, self.val, item_count=self.item_count, umap=self.umap,
+        train_data = self.train if mode == 'val' else self._combine_train_val()
+        val_data = self.val if mode == 'val' else self.test
+
+        if self.do_aggregation:
+            dataset = AEGRSWithAggrEvalDataset(train_data, val_data, item_count=self.item_count, umap=self.umap,
                                        group_strategy=self.group_strategy)
         else:
-            dataset = AEGRSEvalDataset(self._combine_train_val(), self.test, item_count=self.item_count, umap=self.umap,
+            dataset = AEGRSEvalDataset(train_data, val_data, item_count=self.item_count, umap=self.umap,
                                        group_strategy=self.group_strategy)
 
         return dataset
-
 
 class AEGRSEvalDataset(data_utils.Dataset):
     def __init__(self, user2items_input, user2items, item_count, umap, group_strategy: GroupingStrategy):
@@ -90,6 +93,13 @@ class AEGRSEvalDataset(data_utils.Dataset):
 
     def __len__(self):
         return len(self.input_data)
+
+    def __getitem__(self, index):
+        return self.input_data[index], self.label_data[index]
+
+class AEGRSWithAggrEvalDataset(AEGRSEvalDataset):
+    def __init__(self, user2items_input, user2items, item_count, umap, group_strategy: GroupingStrategy):
+        super().__init__(user2items_input, user2items, item_count, umap, group_strategy)
 
     def __getitem__(self, index):
         main_user = self.users[index]

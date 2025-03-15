@@ -69,9 +69,17 @@ class AEDataloader(AbstractDataloader):
                                            shuffle=False, pin_memory=True)
         return dataloader
 
+    def _combine_train_val(self):
+        combined = {}
+        for user in self.train.keys():
+            combined[user] = self.train[user] + self.val[user]
+
+        return combined
+
     def _get_eval_dataset(self, mode):
-        data = self.val if mode == 'val' else self.test
-        dataset = AEEvalDataset(data, item_count=self.item_count)
+        input_data = self.train if mode == 'val' else self._combine_train_val()
+        label_data = self.val if mode == 'val' else self.test
+        dataset = AEEvalDataset(input_data, label_data, item_count=self.item_count)
         return dataset
 
 
@@ -106,10 +114,10 @@ class AETrainDataset(data_utils.Dataset):
 
 
 class AEEvalDataset(data_utils.Dataset):
-    def __init__(self, user2items, item_count):
+    def __init__(self, user2items_inputs, user2items_labels, item_count):
         # Split each user's items to input and label s.t. the two are disjoint
         # Both are lists of np.ndarrays
-        input_list, label_list = self.split_input_label_proportion(user2items)
+        input_list, label_list = self.__transform_input_label(user2items_inputs, user2items_labels)
 
         # Row indices for sparse matrix
         input_user_row, label_user_row = [], []
@@ -134,22 +142,13 @@ class AEEvalDataset(data_utils.Dataset):
         # Convert to torch tensor
         self.input_data = torch.FloatTensor(sparse_input.toarray())
         self.label_data = torch.FloatTensor(sparse_label.toarray())
-    
-    def split_input_label_proportion(self, data, label_prop=0.2):
-        input_list, label_list = [], []
 
-        for items in data.values():
-            items = np.array(items)
-            if len(items) * label_prop >= 1:
-                # ith item => "chosen for label" if choose_as_label[i] is True else "chosen for input"
-                choose_as_label = np.zeros(len(items), dtype='bool')
-                chosen_index = np.random.choice(len(items), size=int(label_prop * len(items)), replace=False).astype('int64')
-                choose_as_label[chosen_index] = True
-                input_list.append(items[np.logical_not(choose_as_label)])
-                label_list.append(items[choose_as_label])
-            else:
-                input_list.append(items)
-                label_list.append(np.array([]))
+    def __transform_input_label(self, inputs, labels):
+        input_list, label_list = [], []
+        assert len(inputs.keys()) == len(labels.keys())
+        for items_input, items_label in zip(inputs.values(), labels.values()):
+            input_list.append(np.array(items_input))
+            label_list.append(np.array(items_label))
 
         return input_list, label_list
 
