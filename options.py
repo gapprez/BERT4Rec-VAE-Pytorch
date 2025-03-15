@@ -1,5 +1,7 @@
 import argparse
 
+import grouping
+
 from dataloaders import DATALOADERS
 from datasets import DATASETS
 from models import MODELS
@@ -113,8 +115,17 @@ parser.add_argument('--vae_dropout', type=float, default=0.5, help='Probability 
 ################
 # GRS
 ################
+# Grouping
+parser.add_argument('--grouping_code', type=str, default='ContentBasedPCC', choices=grouping.GROUPING_STRATEGIES.keys(),
+                    help='The grouping strategy')
 parser.add_argument('--n_clusters', type=int, default=5, help='Number of clusters')
-parser.add_argument('--group_size', type=int, default=50, help='Size of cluster')
+parser.add_argument('--group_size', type=int, default=5, help='Size of cluster')
+parser.add_argument('--similarity_threshold', type=float, default=0.9,
+                    help='Similarity threshold used in ContentBasedPCC')
+
+# Aggregation
+parser.add_argument('--do_aggregation', type=bool, default=False, help='If do aggregation when computing scores')
+parser.add_argument('--aggregation_code', type=str, default='average', choices=['average'], help='Aggregation method')
 
 ################
 # Experiment

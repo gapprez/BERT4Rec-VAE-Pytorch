@@ -1,24 +1,27 @@
-from dataset import dataset_factory as rs_dataset_factory
-from grouping import FCMWithPCCGrouping
+import grouping
 
 from datasets import dataset_factory
 from .ae import AEDataloader
+from .ae_grs import AEGRSDataloader
 from .bert import BertDataloader
 from .bert_grs import BertGRSDataloader, BertGrsEvalDataset
 
 DATALOADERS = {
     BertDataloader.code(): BertDataloader,
     AEDataloader.code(): AEDataloader,
-    BertGRSDataloader.code(): BertGRSDataloader
+    BertGRSDataloader.code(): BertGRSDataloader,
+    AEGRSDataloader.code(): AEGRSDataloader
 }
 
 
 def dataloader_factory(args):
     dataset = dataset_factory(args)
     dataloader = DATALOADERS[args.dataloader_code]
-    if args.dataloader_code == BertGRSDataloader.code():
-        train_ds, val_ds, test_ds = rs_dataset_factory(args.dataset_code)
-        group_strategy = FCMWithPCCGrouping(train_ds, group_size=args.group_size, n_clusters=args.n_clusters)
+    if args.dataloader_code == BertGRSDataloader.code() or args.dataloader_code == AEGRSDataloader.code():
+        # TODO: Use argsparse in msc-grs
+        group_strategy = grouping.grouping_factory(dataset_name=args.dataset_code, group_size=args.group_size,
+                                                   grouping_method=args.grouping_code, n_clusters=args.n_clusters,
+                                                   similarity_threshold=args.similarity_threshold)
         dataloader = dataloader(args, dataset, group_strategy)
     else:
         dataloader = dataloader(args, dataset)

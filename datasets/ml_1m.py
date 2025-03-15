@@ -1,8 +1,6 @@
-from .base import AbstractDataset
-
 import pandas as pd
 
-from datetime import date
+from .base import AbstractDataset
 
 
 class ML1MDataset(AbstractDataset):
@@ -31,5 +29,3 @@ class ML1MDataset(AbstractDataset):
         df = pd.read_csv(file_path, sep='::', header=None)
         df.columns = ['uid', 'sid', 'rating', 'timestamp']
         return df
-
-
