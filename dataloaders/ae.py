@@ -11,30 +11,16 @@ from .negative_samplers import negative_sampler_factory
 class AEDataloader(AbstractDataloader):
     def __init__(self, args, dataset):
         super().__init__(args, dataset)
-
-        # extract a list of unique items from the training set
-        unique_items = set()
-        for items in list(self.train.values()) + list(self.val.values()) + list(self.test.values()):
-            unique_items.update(items)
-
-        # re-map items
-        self.smap = {s: i for i, s in enumerate(unique_items)}
-        remap = lambda items: [self.smap[item] for item in items]
-        self.train = {user: remap(items) for user, items in self.train.items()}
-        self.val = {user: remap(items) for user, items in self.val.items()}
-        self.test = {user: remap(items) for user, items in self.test.items()}
-
-        self.item_count = len(unique_items)
-        args.num_items = self.item_count
-
         # Getting negative samples for proper LOO testing
-        code = args.train_negative_sampler_code
+        code = args.test_negative_sampler_code
         test_negative_sampler = negative_sampler_factory(code, self.train, self.val, self.test,
                                                          self.user_count, self.item_count,
                                                          args.test_negative_sample_size,
                                                          args.test_negative_sampling_seed,
                                                          self.save_folder)
         self.test_negative_samples = test_negative_sampler.get_negative_samples()
+
+        args.num_items = self.item_count
 
     @classmethod
     def code(cls):
