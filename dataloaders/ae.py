@@ -15,14 +15,8 @@ class AEDataloader(AbstractDataloader):
 
         # extract a list of unique items from the training set
         unique_items = set()
-        for items in self.train.values():
+        for items in list(self.train.values()) + list(self.val.values()) + list(self.test.values()):
             unique_items.update(items)
-
-        # Then, we remove users from the val/test set.
-        self.val = {user : items for user, items in self.val.items() \
-                        if all(item in unique_items for item in items)}
-        self.test = {user : items for user, items in self.test.items() \
-                        if all(item in unique_items for item in items)}
 
         # re-map items
         self.smap = {s : i for i, s in enumerate(unique_items)}
