@@ -1,5 +1,6 @@
 import argparse
 
+import aggregation
 import grouping
 
 from dataloaders import DATALOADERS
@@ -125,7 +126,7 @@ parser.add_argument('--similarity_threshold', type=float, default=0.9,
 
 # Aggregation
 parser.add_argument('--do_aggregation', type=bool, default=False, help='If do aggregation when computing scores')
-parser.add_argument('--aggregation_code', type=str, default='average', choices=['average'], help='Aggregation method')
+parser.add_argument('--aggregation_code', type=str, default='Average', choices=aggregation.AGGREGATION_METHODS.keys(), help='Aggregation method')
 
 ################
 # Experiment
