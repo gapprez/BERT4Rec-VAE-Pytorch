@@ -46,7 +46,7 @@ class BERTGRSTrainer(BERTTrainer):
     def test(self):
         print('Test best model with test set!')
 
-        best_model = torch.load('best_acc_model.pth', map_location=torch.device(self.device)).get(
+        best_model = torch.load(f'{self.args.dataset_code}_best_acc_model.pth', map_location=torch.device(self.device)).get(
             'model_state_dict')
         self.model.load_state_dict(best_model)
         self.model.eval()

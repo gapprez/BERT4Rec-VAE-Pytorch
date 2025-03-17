@@ -23,10 +23,6 @@ class BertGrsEvalDataset(BertEvalDataset):
     def get_user_from_map(self, user):
         return list(self.umap.keys())[list(self.umap.values()).index(user)]
 
-    @staticmethod
-    def custom_collate_fn(batch):
-        return batch
-
 
 class BertGRSWithAggEvalDataset(BertGrsEvalDataset):
     def __init__(self, u2seq, u2answer, max_len, mask_token, negative_samples, umap, group_strategy: GroupingStrategy):
@@ -81,9 +77,16 @@ class BertGRSDataloader(BertDataloader):
 
         return dataset
 
+    @staticmethod
+    def custom_collate_fn(batch):
+        return batch
+
     def _get_eval_loader(self, mode):
         batch_size = self.args.val_batch_size if mode == 'val' else self.args.test_batch_size
         dataset = self._get_eval_dataset(mode)
-        dataloader = data_utils.DataLoader(dataset, batch_size=batch_size,
-                                           shuffle=False, pin_memory=True, collate_fn=dataset.custom_collate_fn)
+        if self.do_aggregation:
+            dataloader = data_utils.DataLoader(dataset, batch_size=batch_size,
+                                               shuffle=False, pin_memory=True, collate_fn=self.custom_collate_fn)
+        else:
+            dataloader = data_utils.DataLoader(dataset, batch_size=batch_size, shuffle=False, pin_memory=True)
         return dataloader

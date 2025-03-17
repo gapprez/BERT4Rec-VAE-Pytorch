@@ -146,7 +146,7 @@ class AbstractTrainer(metaclass=ABCMeta):
     def test(self):
         print('Test best model with test set!')
 
-        best_model = torch.load(os.path.join(self.export_root, 'models', 'best_acc_model.pth')).get('model_state_dict')
+        best_model = torch.load(f'{self.args.dataset_code}_best_acc_model.pth', map_location=torch.device(self.device)).get('model_state_dict')
         self.model.load_state_dict(best_model)
         self.model.eval()
 
