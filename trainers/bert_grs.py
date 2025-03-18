@@ -35,7 +35,8 @@ class BERTGRSTrainer(BERTTrainer):
         for (seq_group, candidates_group, labels_group) in batch:
             scores_i = self.model(seq_group)
             scores_i = scores_i[:, -1, :]
-            scores_i = scores_i.gather(1, candidates_group[None, :])
+            candidates_group = candidates_group[None, :]
+            scores_i = scores_i.gather(1, candidates_group.expand(seq_group.shape[0], -1))
             scores.append(self.aggregation_strategy.aggregate_pytorch(scores_i))
             labels.append(labels_group)
 
