@@ -140,7 +140,8 @@ class AEEvalDataset(data_utils.Dataset):
         self.label_data = torch.FloatTensor(sparse_label.toarray())
         self.negative_data = torch.FloatTensor(sparse_negatives.toarray())
 
-    def __transform_input_label(self, inputs, labels, negatives):
+    @staticmethod
+    def __transform_input_label(inputs, labels, negatives):
         input_list, label_list, negatives_list = [], [], []
 
         assert len(inputs.keys()) == len(labels.keys()) == len(negatives.keys())

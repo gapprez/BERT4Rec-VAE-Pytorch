@@ -95,7 +95,7 @@ def set_template(args):
         args.dataset_split_seed = 98765
         args.eval_set_size = 500 if args.dataset_code == 'ml-1m' or args.dataset_code == 'ml-latest-small' else 10000
 
-        args.dataloader_code = 'ae'
+        # args.dataloader_code = 'ae'
         batch = 128 if args.dataset_code == 'ml-1m' or args.dataset_code == 'ml-latest-small' else 512
         args.train_batch_size = batch
         args.val_batch_size = batch
@@ -134,7 +134,7 @@ def set_template(args):
         args.dataset_split_seed = 98765
         args.eval_set_size = 500 if args.dataset_code == 'ml-1m' or args.dataset_code == 'ml-latest-small' else 10000
 
-        args.dataloader_code = 'ae'
+        # args.dataloader_code = 'ae'
         batch = 128 if args.dataset_code == 'ml-1m' or args.dataset_code == 'ml-latest-small' else 512
         args.train_batch_size = batch
         args.val_batch_size = batch

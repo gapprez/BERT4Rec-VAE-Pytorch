@@ -37,11 +37,6 @@ class BERTGRSTrainer(BERTTrainer):
             scores_i = scores_i[:, -1, :]
             candidates_group = candidates_group[None, :]
             scores_i = scores_i.gather(1, candidates_group.expand(seq_group.shape[0], -1))
-
-            # Computing Z-score normalization
-            row_mean = scores_i.mean(dim=1, keepdim=True)
-            row_std = scores_i.std(dim=1, keepdim=True, unbiased=True)  # unbiased=True for sample st
-            scores_i = (scores_i - row_mean) / row_std
             scores.append(self.aggregation_strategy.aggregate_pytorch(scores_i))
             labels.append(labels_group)
 
