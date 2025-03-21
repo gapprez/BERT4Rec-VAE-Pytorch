@@ -5,7 +5,7 @@ from grouping.base import GroupingStrategy
 from scipy import sparse
 
 from .ae import AETrainDataset, AEDataloader
-
+from tqdm import tqdm
 
 class AEGRSDataloader(AEDataloader):
     def __init__(self, args, dataset, group_strategy: GroupingStrategy):
@@ -63,14 +63,14 @@ class AEGRSEvalDataset(data_utils.Dataset):
         self.group_strategy = group_strategy
         users_in_groups = self.group_strategy.get_unique_users()
         self.umap = umap
-        self.users = [user for user in user2items_input.keys() if self.get_user_from_map(user) in users_in_groups]
+        self.users = [self.umap[user] for user in users_in_groups]
 
         input_list, label_list, negative_list = self.__transform_input_label(user2items_input, user2items,
                                                                              negative_samples)
 
         # Row indices for sparse matrix
         input_user_row, label_user_row, negative_user_row = [], [], []
-        for user, input_items in enumerate(input_list):
+        for user, input_items in tqdm(enumerate(input_list), desc='Getting input rows'):
             for _ in range(len(input_items)):
                 input_user_row.append(user)
         for user, label_items in enumerate(label_list):
@@ -87,6 +87,7 @@ class AEGRSEvalDataset(data_utils.Dataset):
         negative_item_col = np.hstack(negative_list)
 
         # Construct sparse matrix
+        print("Constructing sparse matrices")
         sparse_input = sparse.csr_matrix((np.ones(len(input_user_row)), (input_user_row, input_item_col)),
                                          dtype='float64', shape=(len(input_list), item_count))
         sparse_label = sparse.csr_matrix((np.ones(len(label_user_row)), (label_user_row, label_item_col)),

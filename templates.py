@@ -138,7 +138,7 @@ def set_template(args):
         batch = 128 if args.dataset_code == 'ml-1m' or args.dataset_code == 'ml-latest-small' else 512
         args.train_batch_size = batch
         args.val_batch_size = batch
-        args.test_batch_size = batch
+        args.test_batch_size = 128
 
         # args.trainer_code = 'vae'
         args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
