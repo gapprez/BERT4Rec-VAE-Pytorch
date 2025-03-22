@@ -36,7 +36,7 @@ class AEDataloader(AbstractDataloader):
     def _get_train_loader(self):
         dataset = self._get_train_dataset()
         dataloader = data_utils.DataLoader(dataset, batch_size=self.args.train_batch_size,
-                                           shuffle=True)
+                                           shuffle=True, num_workers=self.args.num_workers)
         return dataloader
 
     def _get_train_dataset(self):
@@ -53,8 +53,7 @@ class AEDataloader(AbstractDataloader):
         batch_size = self.args.val_batch_size if mode == 'val' else self.args.test_batch_size
         dataset = self._get_eval_dataset(mode)
         dataloader = data_utils.DataLoader(dataset, batch_size=batch_size, shuffle=False,
-                                           num_workers=self.args.num_workers,
-                                           drop_last=self.args.drop_last)
+                                           num_workers=self.args.num_workers)
         return dataloader
 
     def _combine_train_val(self):

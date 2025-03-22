@@ -4,7 +4,6 @@ from pathlib import Path
 import numpy as np
 import torch.nn as nn
 import torch.optim as optim
-import torch.utils.data as data_utils
 import torch_xla as xla
 import torch_xla.core.xla_model as xm
 import torch_xla.distributed.parallel_loader as pl
@@ -15,7 +14,6 @@ from torch_xla import dist
 from config import STATE_DICT_KEY, OPTIMIZER_STATE_DICT_KEY
 from loggers import *
 from utils import AverageMeterSet
-from torch_xla import runtime as xr
 
 
 class AbstractTrainer(metaclass=ABCMeta):
@@ -70,24 +68,8 @@ class AbstractTrainer(metaclass=ABCMeta):
     def calculate_metrics(self, batch):
         pass
 
-    def __maybe_add_train_sampler(self):
-        dataset = self.train_loader.dataset
-        if xr.world_size() > 1:
-            self.train_sampler = torch.utils.data.distributed.DistributedSampler(
-                dataset,
-                num_replicas=xr.world_size(),
-                rank=xr.global_ordinal(),
-                shuffle=True)
-            data_utils.DataLoader(dataset, batch_size=self.args.train_batch_size,
-                                     shuffle=False if self.train_sampler else True, num_workers=self.args.num_workers,
-                                     drop_last=self.args.drop_last)
-        else:
-            return self.train_loader
-
     def train(self):
         dist.init_process_group('xla', init_method='xla://')
-
-        self.train_loader = self.__maybe_add_train_sampler()
 
         self.device = xla.device()
         xm.master_print("Before saving model to device")
@@ -124,7 +106,11 @@ class AbstractTrainer(metaclass=ABCMeta):
         self.model.train()
 
         average_meter_set = AverageMeterSet()
-        mp_dataloader = pl.MpDeviceLoader(self.train_loader, self.device)
+        # Check https://pytorch.org/xla/master/_modules/torch_xla/distributed/parallel_loader.html
+        mp_dataloader = pl.MpDeviceLoader(self.train_loader, self.device,
+                                          loader_prefetch_size=self.args.loader_prefetch_size,
+                                          device_prefetch_size=self.args.device_prefetch_size,
+                                          host_to_device_transfer_threads=self.args.host_to_device_transfer_threads)
 
         for batch_idx, batch in enumerate(mp_dataloader):
             batch_size = batch[0].size(0)
@@ -161,7 +147,10 @@ class AbstractTrainer(metaclass=ABCMeta):
         average_meter_set = AverageMeterSet()
 
         with torch.no_grad():
-            mp_dataloader = pl.MpDeviceLoader(self.val_loader, self.device)
+            mp_dataloader = pl.MpDeviceLoader(self.val_loader, self.device,
+                                              loader_prefetch_size=self.args.loader_prefetch_size,
+                                              device_prefetch_size=self.args.device_prefetch_size,
+                                              host_to_device_transfer_threads=self.args.host_to_device_transfer_threads)
             for batch_idx, batch in enumerate(mp_dataloader):
                 average_meter_set = self._recompute_metrics(batch, average_meter_set)
 
@@ -201,7 +190,10 @@ class AbstractTrainer(metaclass=ABCMeta):
         average_meter_set = AverageMeterSet()
 
         with torch.no_grad():
-            mp_loader = pl.MpDeviceLoader(self.test_loader, self.device)
+            mp_loader = pl.MpDeviceLoader(self.test_loader, self.device,
+                                          loader_prefetch_size=self.args.loader_prefetch_size,
+                                          device_prefetch_size=self.args.device_prefetch_size,
+                                          host_to_device_transfer_threads=self.args.host_to_device_transfer_threads)
             for batch_idx, batch in enumerate(mp_loader):
                 average_meter_set = self._recompute_metrics(batch, average_meter_set)
 

@@ -126,7 +126,8 @@ parser.add_argument('--similarity_threshold', type=float, default=0.9,
 
 # Aggregation
 parser.add_argument('--do_aggregation', type=bool, default=False, help='If do aggregation when computing scores')
-parser.add_argument('--aggregation_code', type=str, default='Average', choices=aggregation.AGGREGATION_METHODS.keys(), help='Aggregation method')
+parser.add_argument('--aggregation_code', type=str, default='Average', choices=aggregation.AGGREGATION_METHODS.keys(),
+                    help='Aggregation method')
 
 ################
 # Experiment
@@ -136,8 +137,13 @@ parser.add_argument('--experiment_description', type=str, default='test')
 
 # TPU
 parser.add_argument('--num_workers', type=int, default=1, help="Number of workers to help prepare the data")
-parser.add_argument('--drop_last', type=bool, default=False, help="If to drop the last incomplete batch")
 parser.add_argument('--debug_single_process', type=bool, default=False, help="TPU debugging")
+parser.add_argument('--loader_prefetch_size', type=int, default=16,
+                    help="Data size from storage to CPU (before sending to TPU)")
+parser.add_argument('--device_prefetch_size', type=int, default=8,
+                    help="Data size to queue on the TPU to ensure it's ready when needed")
+parser.add_argument('--host_to_device_transfer_threads', type=int, default=4,
+                    help="How many threads handle the transfer of data from the host (CPU) to the TPU.")
 ################
 args = parser.parse_args()
 set_template(args)
