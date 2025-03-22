@@ -6,6 +6,7 @@ from scipy import sparse
 import numpy as np
 
 from .negative_samplers import negative_sampler_factory
+from torch_xla import runtime as xr
 
 
 class AEDataloader(AbstractDataloader):
@@ -21,6 +22,7 @@ class AEDataloader(AbstractDataloader):
         self.test_negative_samples = test_negative_sampler.get_negative_samples()
 
         args.num_items = self.item_count
+        self.train_sampler = None
 
     @classmethod
     def code(cls):
@@ -34,8 +36,15 @@ class AEDataloader(AbstractDataloader):
 
     def _get_train_loader(self):
         dataset = self._get_train_dataset()
+        if xr.world_size() > 1:
+            self.train_sampler = torch.utils.data.distributed.DistributedSampler(
+                dataset,
+                num_replicas=xr.world_size(),
+                rank=xr.global_ordinal(),
+                shuffle=True)
         dataloader = data_utils.DataLoader(dataset, batch_size=self.args.train_batch_size,
-                                           shuffle=True, pin_memory=True)
+                                           shuffle=False if self.train_sampler else True,
+                                           num_workers=self.args.num_workers, drop_last=self.args.drop_last)
         return dataloader
 
     def _get_train_dataset(self):
@@ -51,8 +60,9 @@ class AEDataloader(AbstractDataloader):
     def _get_eval_loader(self, mode):
         batch_size = self.args.val_batch_size if mode == 'val' else self.args.test_batch_size
         dataset = self._get_eval_dataset(mode)
-        dataloader = data_utils.DataLoader(dataset, batch_size=batch_size,
-                                           shuffle=False, pin_memory=True)
+        dataloader = data_utils.DataLoader(dataset, batch_size=batch_size, shuffle=False,
+                                           num_workers=self.args.num_workers,
+                                           drop_last=self.args.drop_last)
         return dataloader
 
     def _combine_train_val(self):

@@ -1,25 +1,32 @@
-from loggers import *
-from config import STATE_DICT_KEY, OPTIMIZER_STATE_DICT_KEY
-from utils import AverageMeterSet
+import json
+from pathlib import Path
 
-import torch
+import numpy as np
 import torch.nn as nn
 import torch.optim as optim
+import torch_xla as xla
+import torch_xla.core.xla_model as xm
+import torch_xla.distributed.parallel_loader as pl
+import torch_xla.test.test_utils as test_utils
 from torch.utils.tensorboard import SummaryWriter
+from torch_xla import dist
 from tqdm import tqdm
 
-import json
-from abc import *
-from pathlib import Path
+from config import STATE_DICT_KEY, OPTIMIZER_STATE_DICT_KEY
+from loggers import *
+from utils import AverageMeterSet
 
 
 class AbstractTrainer(metaclass=ABCMeta):
     def __init__(self, args, model, train_loader, val_loader, test_loader, export_root):
         self.args = args
+
+
+        self.model = model
         self.device = args.device
-        self.model = model.to(self.device)
         self.is_parallel = args.num_gpu > 1
         if self.is_parallel:
+            print("Using more than one GPU")
             self.model = nn.DataParallel(self.model)
 
         self.train_loader = train_loader
@@ -34,9 +41,8 @@ class AbstractTrainer(metaclass=ABCMeta):
         self.best_metric = args.best_metric
 
         self.export_root = export_root
-        self.writer, self.train_loggers, self.val_loggers = self._create_loggers()
-        self.add_extra_loggers()
-        self.logger_service = LoggerService(self.train_loggers, self.val_loggers)
+
+        self.logger_service = None
         self.log_period_as_iter = args.log_period_as_iter
 
     @abstractmethod
@@ -65,11 +71,34 @@ class AbstractTrainer(metaclass=ABCMeta):
         pass
 
     def train(self):
+        dist.init_process_group('xla', init_method='xla://')
+
+        self.device = xla.device()
+        xm.master_print("Before saving model to device")
+        self.model.to(self.device)
+
+        # Initialization is nondeterministic with multiple threads in PjRt.
+        # Synchronize model parameters across replicas manually.
+        xm.broadcast_master_param(self.model)
+
+        xm.master_print("Saved model to device")
+        # Create loggers for master process
+        if xm.is_master_ordinal():
+            self.writer, self.train_loggers, self.val_loggers = self._create_loggers()
+            self.logger_service = LoggerService(self.train_loggers, self.val_loggers)
+            self.add_extra_loggers()
+
         accum_iter = 0
+        xm.master_print("Before first validation")
         self.validate(0, accum_iter)
+        xm.master_print("After first validation")
+
         for epoch in range(self.num_epochs):
+            xm.master_print('Epoch {} train begin {}'.format(epoch, test_utils.now()))
             accum_iter = self.train_one_epoch(epoch, accum_iter)
+            xm.master_print('Epoch {} train end {}'.format(epoch, test_utils.now()))
             self.validate(epoch, accum_iter)
+            xm.master_print('Epoch {} test end {}'.format(epoch, test_utils.now()))
         self.logger_service.complete({
             'state_dict': (self._create_state_dict()),
         })
@@ -79,32 +108,29 @@ class AbstractTrainer(metaclass=ABCMeta):
         self.model.train()
 
         average_meter_set = AverageMeterSet()
-        tqdm_dataloader = tqdm(self.train_loader)
+        mp_dataloader = pl.MpDeviceLoader(self.train_loader, self.device)
 
-        for batch_idx, batch in enumerate(tqdm_dataloader):
+        for batch_idx, batch in enumerate(mp_dataloader):
             batch_size = batch[0].size(0)
-            batch = [x.to(self.device) for x in batch]
 
             self.optimizer.zero_grad()
             loss = self.calculate_loss(batch)
             loss.backward()
 
-            self.optimizer.step()
+            xm.optimizer_step(self.optimizer)
 
-            if self.args.enable_lr_schedule:
+            if self.args.enable_lr_schedule and xm.is_master_ordinal():
                 self.lr_scheduler.step()
 
             average_meter_set.update('loss', loss.item())
-            tqdm_dataloader.set_description(
-                'Epoch {}, loss {:.3f} '.format(epoch+1, average_meter_set['loss'].avg))
+            xm.master_print('Epoch {}, loss {:.3f} '.format(epoch + 1, average_meter_set['loss'].avg))
 
             accum_iter += batch_size
 
             if self._needs_to_log(accum_iter):
-                tqdm_dataloader.set_description('Logging to Tensorboard')
                 log_data = {
                     'state_dict': (self._create_state_dict()),
-                    'epoch': epoch+1,
+                    'epoch': epoch + 1,
                     'accum_iter': accum_iter,
                 }
                 log_data.update(average_meter_set.averages())
@@ -119,66 +145,62 @@ class AbstractTrainer(metaclass=ABCMeta):
         average_meter_set = AverageMeterSet()
 
         with torch.no_grad():
-            tqdm_dataloader = tqdm(self.val_loader)
-            for batch_idx, batch in enumerate(tqdm_dataloader):
-                batch = [x.to(self.device) for x in batch]
+            mp_dataloader = pl.MpDeviceLoader(self.val_loader, self.device)
+            for batch_idx, batch in enumerate(mp_dataloader):
+                average_meter_set = self._recompute_metrics(batch, average_meter_set)
 
-                metrics = self.calculate_metrics(batch)
+            if xm.is_master_ordinal():
+                log_data = {
+                    'state_dict': (self._create_state_dict()),
+                    'epoch': epoch + 1,
+                    'accum_iter': accum_iter,
+                }
+                log_data.update(average_meter_set.averages())
+                self.log_extra_val_info(log_data)
+                self.logger_service.log_val(log_data)
 
-                for k, v in metrics.items():
-                    average_meter_set.update(k, v)
-                description_metrics = ['NDCG@%d' % k for k in self.metric_ks[:3]] +\
-                                      ['Recall@%d' % k for k in self.metric_ks[:3]]
-                description = 'Val: ' + ', '.join(s + ' {:.3f}' for s in description_metrics)
-                description = description.replace('NDCG', 'N').replace('Recall', 'R')
-                description = description.format(*(average_meter_set[k].avg for k in description_metrics))
-                tqdm_dataloader.set_description(description)
+    def _recompute_metrics(self, batch, average_meter_set):
+        metrics = self.calculate_metrics(batch)
 
-            log_data = {
-                'state_dict': (self._create_state_dict()),
-                'epoch': epoch+1,
-                'accum_iter': accum_iter,
-            }
-            log_data.update(average_meter_set.averages())
-            self.log_extra_val_info(log_data)
-            self.logger_service.log_val(log_data)
+        for k, v in metrics.items():
+            average_meter_set.update(k, xm.mesh_reduce(k, v, np.mean))
+
+        description_metrics = ['NDCG@%d' % k for k in self.metric_ks[:3]] + \
+                              ['Recall@%d' % k for k in self.metric_ks[:3]]
+        description = 'Val: ' + ', '.join(s + ' {:.3f}' for s in description_metrics)
+        description = description.replace('NDCG', 'N').replace('Recall', 'R')
+        description = description.format(*(average_meter_set[k].avg for k in description_metrics))
+        xm.master_print(description)
+
+        return average_meter_set
 
     def test(self):
         print('Test best model with test set!')
 
-        best_model = torch.load(f'{self.args.dataset_code}_best_acc_model.pth', map_location=torch.device(self.device)).get('model_state_dict')
+        best_model = torch.load(f'{self.args.dataset_code}_best_acc_model.pth',
+                                map_location=torch.device(self.device)).get('model_state_dict')
         self.model.load_state_dict(best_model)
         self.model.eval()
 
         average_meter_set = AverageMeterSet()
 
         with torch.no_grad():
-            tqdm_dataloader = tqdm(self.test_loader)
-            for batch_idx, batch in enumerate(tqdm_dataloader):
-                batch = [x.to(self.device) for x in batch]
+            mp_loader = pl.MpDeviceLoader(self.test_loader, self.device)
+            for batch_idx, batch in enumerate(mp_loader):
+                average_meter_set = self._recompute_metrics(batch, average_meter_set)
 
-                metrics = self.calculate_metrics(batch)
-
-                for k, v in metrics.items():
-                    average_meter_set.update(k, v)
-                description_metrics = ['NDCG@%d' % k for k in self.metric_ks[:3]] +\
-                                      ['Recall@%d' % k for k in self.metric_ks[:3]]
-                description = 'Val: ' + ', '.join(s + ' {:.3f}' for s in description_metrics)
-                description = description.replace('NDCG', 'N').replace('Recall', 'R')
-                description = description.format(*(average_meter_set[k].avg for k in description_metrics))
-                tqdm_dataloader.set_description(description)
-
-            average_metrics = average_meter_set.averages()
-            with open(os.path.join(self.export_root, 'logs', 'test_metrics.json'), 'w') as f:
-                json.dump(average_metrics, f, indent=4)
-            print(average_metrics)
+            if xm.is_master_ordinal():
+                average_metrics = average_meter_set.averages()
+                with open(os.path.join(self.export_root, 'logs', 'test_metrics.json'), 'w') as f:
+                    json.dump(average_metrics, f, indent=4)
 
     def _create_optimizer(self):
         args = self.args
         if args.optimizer.lower() == 'adam':
             return optim.Adam(self.model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
         elif args.optimizer.lower() == 'sgd':
-            return optim.SGD(self.model.parameters(), lr=args.lr, weight_decay=args.weight_decay, momentum=args.momentum)
+            return optim.SGD(self.model.parameters(), lr=args.lr, weight_decay=args.weight_decay,
+                             momentum=args.momentum)
         else:
             raise ValueError
 

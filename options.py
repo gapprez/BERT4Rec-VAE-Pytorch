@@ -134,6 +134,10 @@ parser.add_argument('--aggregation_code', type=str, default='Average', choices=a
 parser.add_argument('--experiment_dir', type=str, default='experiments')
 parser.add_argument('--experiment_description', type=str, default='test')
 
+# TPU
+parser.add_argument('--num_workers', type=int, default=1, help="Number of workers to help prepare the data")
+parser.add_argument('--drop_last', type=bool, default=False, help="If to drop the last incomplete batch")
+parser.add_argument('--debug_single_process', type=bool, default=False, help="TPU debugging")
 ################
 args = parser.parse_args()
 set_template(args)

@@ -118,7 +118,6 @@ class BertTrainDataset(data_utils.Dataset):
         return self.u2seq[user]
 
 
-
 class BertEvalDataset(data_utils.Dataset):
     def __init__(self, u2seq, u2answer, max_len, mask_token, negative_samples):
         self.u2seq = u2seq
@@ -146,4 +145,3 @@ class BertEvalDataset(data_utils.Dataset):
         seq = [0] * padding_len + seq
 
         return torch.LongTensor(seq), torch.LongTensor(candidates), torch.LongTensor(labels)
-

@@ -1,3 +1,5 @@
+import torch
+import torch_xla as xla
 from aggregation import Average, BordaCount
 from dataset import SteamRSDataset, MINDRSDataset, MovieLensRSDataset, ML1m
 from grouping import FCMWithPCCGrouping, KNNGrouping, ContentBasedPCCGrouping
@@ -10,12 +12,24 @@ from trainers import trainer_factory
 from utils import *
 
 
+def trainer_fn(index, trainer):
+    torch.set_default_dtype(torch.float32)
+    return trainer.train()
+
+
+def test_fn(index, trainer):
+    torch.set_default_dtype(torch.float32)
+    return trainer.test()
+
+
 def train():
     export_root = setup_train(args)
     train_loader, val_loader, test_loader = dataloader_factory(args)
     model = model_factory(args)
     trainer = trainer_factory(args, model, train_loader, val_loader, test_loader, export_root)
-    trainer.train()
+
+    # xla.launch automatically selects the correct world size
+    xla.launch(trainer_fn, args=(trainer,), debug_single_process=args.debug_single_process)
 
 
 def test():
@@ -23,7 +37,8 @@ def test():
     train_loader, val_loader, test_loader = dataloader_factory(args)
     model = model_factory(args)
     trainer = trainer_factory(args, model, train_loader, val_loader, test_loader, export_root)
-    trainer.test()
+    # xla.launch automatically selects the correct world size
+    xla.launch(test_fn, args=(trainer,), debug_single_process=args.debug_single_process)
 
 
 def set_experiment_description():
