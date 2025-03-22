@@ -6,7 +6,6 @@ from scipy import sparse
 import numpy as np
 
 from .negative_samplers import negative_sampler_factory
-from torch_xla import runtime as xr
 
 
 class AEDataloader(AbstractDataloader):
@@ -36,15 +35,8 @@ class AEDataloader(AbstractDataloader):
 
     def _get_train_loader(self):
         dataset = self._get_train_dataset()
-        if xr.world_size() > 1:
-            self.train_sampler = torch.utils.data.distributed.DistributedSampler(
-                dataset,
-                num_replicas=xr.world_size(),
-                rank=xr.global_ordinal(),
-                shuffle=True)
         dataloader = data_utils.DataLoader(dataset, batch_size=self.args.train_batch_size,
-                                           shuffle=False if self.train_sampler else True,
-                                           num_workers=self.args.num_workers, drop_last=self.args.drop_last)
+                                           shuffle=True)
         return dataloader
 
     def _get_train_dataset(self):

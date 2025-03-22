@@ -1,4 +1,3 @@
-import torch
 import torch_xla as xla
 from aggregation import Average, BordaCount
 from dataset import SteamRSDataset, MINDRSDataset, MovieLensRSDataset, ML1m

@@ -4,23 +4,23 @@ from pathlib import Path
 import numpy as np
 import torch.nn as nn
 import torch.optim as optim
+import torch.utils.data as data_utils
 import torch_xla as xla
 import torch_xla.core.xla_model as xm
 import torch_xla.distributed.parallel_loader as pl
 import torch_xla.test.test_utils as test_utils
 from torch.utils.tensorboard import SummaryWriter
 from torch_xla import dist
-from tqdm import tqdm
 
 from config import STATE_DICT_KEY, OPTIMIZER_STATE_DICT_KEY
 from loggers import *
 from utils import AverageMeterSet
+from torch_xla import runtime as xr
 
 
 class AbstractTrainer(metaclass=ABCMeta):
     def __init__(self, args, model, train_loader, val_loader, test_loader, export_root):
         self.args = args
-
 
         self.model = model
         self.device = args.device
@@ -70,8 +70,24 @@ class AbstractTrainer(metaclass=ABCMeta):
     def calculate_metrics(self, batch):
         pass
 
+    def __maybe_add_train_sampler(self):
+        dataset = self.train_loader.dataset
+        if xr.world_size() > 1:
+            self.train_sampler = torch.utils.data.distributed.DistributedSampler(
+                dataset,
+                num_replicas=xr.world_size(),
+                rank=xr.global_ordinal(),
+                shuffle=True)
+            data_utils.DataLoader(dataset, batch_size=self.args.train_batch_size,
+                                     shuffle=False if self.train_sampler else True, num_workers=self.args.num_workers,
+                                     drop_last=self.args.drop_last)
+        else:
+            return self.train_loader
+
     def train(self):
         dist.init_process_group('xla', init_method='xla://')
+
+        self.train_loader = self.__maybe_add_train_sampler()
 
         self.device = xla.device()
         xm.master_print("Before saving model to device")
