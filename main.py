@@ -38,7 +38,7 @@ def set_experiment_description(grouping):
 
 
 def test_all_config():
-    for aggregation_code in tqdm([None] + list(AGGREGATION_METHODS.keys()), desc='Testing all configurations'):
+    for aggregation_code in tqdm([Average.code()], desc='Testing all configurations'):
         args.do_aggregation = aggregation_code is not None
         args.aggregation_code = aggregation_code if args.do_aggregation else Average.code()
 
@@ -73,5 +73,3 @@ if __name__ == '__main__':
         train()
     elif args.mode == 'test':
         test_all_config()
-    else:
-        raise ValueError('Invalid mode')
