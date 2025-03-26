@@ -1,5 +1,6 @@
 from aggregation import Average, AGGREGATION_METHODS
-from grouping import GROUPING_STRATEGIES
+from dataset import dataset_factory
+from grouping import GROUPING_STRATEGIES, FCMWithPCCGrouping
 from tqdm import tqdm
 
 from dataloaders import dataloader_factory
@@ -42,7 +43,7 @@ def test_all_config():
         args.do_aggregation = aggregation_code is not None
         args.aggregation_code = aggregation_code if args.do_aggregation else Average.code()
 
-        for grouping in GROUPING_STRATEGIES.values():
+        for grouping in [FCMWithPCCGrouping]:
             args.grouping_code = grouping.code()
             is_similarity = grouping.is_similarity()
             n_clusters_or_sim = grouping.get_sim_list(args.dataset_code) if is_similarity else grouping.get_n_clusters_list(args.dataset_code)
@@ -58,6 +59,35 @@ def test_all_config():
 
                     test()
 
+def get_model_name():
+    if args.dataloader_code == 'bert_grs':
+        return 'BERT4Rec'
+    elif args.dataloader_code == 'ae_grs':
+        return 'VAE'
+
+    raise ValueError("Cannot infer model name")
+
+def test_best():
+    for aggregation_code in tqdm([None] + list(AGGREGATION_METHODS.keys()), desc='Testing best configurations'):
+        args.do_aggregation = aggregation_code is not None
+        args.aggregation_code = aggregation_code if args.do_aggregation else Average.code()
+
+        for grouping in GROUPING_STRATEGIES.values():
+            args.grouping_code = grouping.code()
+            args.trainer_code = get_trainer_code()
+
+            # Setting experiment folder
+            train_ds, _, _ = dataset_factory(args.dataset_code)
+            grouping_method = GROUPING_STRATEGIES[args.grouping_code].load_with_best_hyperparams(train_ds, get_model_name())
+            args.group_size = grouping_method.group_size
+            if grouping_method.is_similarity():
+                args.similarity_threshold = grouping_method.similarity_threshold
+            else:
+                args.n_clusters = grouping_method.n_clusters
+
+            set_experiment_description(grouping)
+
+            test()
 
 def get_trainer_code():
     if args.dataloader_code == 'ae_grs':
@@ -73,3 +103,7 @@ if __name__ == '__main__':
         train()
     elif args.mode == 'test':
         test_all_config()
+    elif args.mode == 'test_best':
+        test_best()
+    else:
+        raise ValueError("Wrong mode")
