@@ -12,6 +12,7 @@ class BertGrsEvalDataset(BertEvalDataset):
         super().__init__(u2seq, u2answer, max_len, mask_token, negative_samples)
         self.group_strategy = group_strategy
         self.umap = umap
+        self.reverse_umap = {v: k for k, v in self.umap.items()}
 
         users_in_groups = self.group_strategy.get_unique_users()
         self.users = []
@@ -21,7 +22,7 @@ class BertGrsEvalDataset(BertEvalDataset):
         self.users = sorted(self.users)
 
     def get_user_from_map(self, user):
-        return list(self.umap.keys())[list(self.umap.values()).index(user)]
+        return self.reverse_umap[user]
 
 
 class BertGRSWithAggEvalDataset(BertGrsEvalDataset):

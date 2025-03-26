@@ -63,6 +63,7 @@ class AEGRSEvalDataset(data_utils.Dataset):
         self.group_strategy = group_strategy
         users_in_groups = self.group_strategy.get_unique_users()
         self.umap = umap
+        self.reverse_umap = {v: k for k, v in self.umap.items()}
         self.users = [self.umap[user] for user in users_in_groups]
 
         input_list, label_list, negative_list = self.__transform_input_label(user2items_input, user2items,
@@ -102,7 +103,7 @@ class AEGRSEvalDataset(data_utils.Dataset):
         self.negative_data = torch.FloatTensor(sparse_negatives.toarray())
 
     def get_user_from_map(self, user):
-        return list(self.umap.keys())[list(self.umap.values()).index(user)]
+        return self.reverse_umap[user]
 
     @staticmethod
     def __transform_input_label(inputs, labels, negatives):
