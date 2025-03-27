@@ -46,8 +46,8 @@ def set_template(args):
         args.bert_hidden_units = 256
         args.bert_mask_prob = 0.15
         args.bert_max_len = 30
-        args.bert_num_blocks = 4 if args.dataset_code == MINDRSDataset.code() else 2
-        args.bert_num_heads = 8 if args.dataset_code == MINDRSDataset.code() else 4
+        args.bert_num_blocks = 2
+        args.bert_num_heads = 4
     
     elif args.template.startswith('train_dae'):
         args.mode = 'train'
