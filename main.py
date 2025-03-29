@@ -86,7 +86,7 @@ def test_best():
 
                 # Setting experiment folder
                 train_ds, _, _ = dataset_factory(args.dataset_code)
-                grouping_method = GROUPING_STRATEGIES[args.grouping_code].load_with_best_hyperparams(train_ds, get_model_name())
+                grouping_method = GROUPING_STRATEGIES[args.grouping_code].load_with_best_hyperparams(train_ds, aggregation_code, get_model_name())
                 args.group_size = grouping_method.group_size
                 if grouping_method.is_similarity():
                     args.similarity_threshold = grouping_method.similarity_threshold

@@ -23,7 +23,7 @@ def dataloader_factory(args):
         if args.mode == 'test_best':
             model_name = 'BERT4Rec' if args.dataloader_code == BertGRSDataloader.code() else 'VAE'
             train_ds, _, _ = rs_dataset_factory(args.dataset_code)
-            group_strategy = GROUPING_STRATEGIES[args.grouping_code].load_with_best_hyperparams(train_ds, model_name)
+            group_strategy = GROUPING_STRATEGIES[args.grouping_code].load_with_best_hyperparams(train_ds, args.aggregation_code, model_name)
         else:
             group_strategy = grouping.grouping_factory(dataset_name=args.dataset_code, group_size=args.group_size,
                                                        grouping_method=args.grouping_code, n_clusters=args.n_clusters,
