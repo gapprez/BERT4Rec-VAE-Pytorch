@@ -1,6 +1,6 @@
-from aggregation import Average, AGGREGATION_METHODS
-from dataset import dataset_factory
-from grouping import GROUPING_STRATEGIES, FCMWithPCCGrouping
+from aggregation import Average, AGGREGATION_METHODS, LeastMisery, BordaCount
+from dataset import dataset_factory, MovieLensRSDataset, ML1m
+from grouping import GROUPING_STRATEGIES, FCMWithPCCGrouping, ContentBasedPCCGrouping, KNNGrouping
 from tqdm import tqdm
 
 from dataloaders import dataloader_factory
@@ -39,11 +39,18 @@ def set_experiment_description(grouping):
 
 
 def test_all_config():
-    for aggregation_code in tqdm([Average.code()], desc='Testing all configurations'):
+    # if args.dataset_code in [MovieLensRSDataset.code(), ML1m.code()]:
+    #     # Remove old groups
+    #     train_ds, _, _ = dataset_factory(args.dataset_code)
+    #     for grouping in GROUPING_STRATEGIES.values():
+    #         grouping_method = grouping(train_ds)
+    #         grouping_method.clean_all()
+
+    for aggregation_code in tqdm([Average.code(), BordaCount.code(), LeastMisery.code()], desc='Testing all configurations'):
         args.do_aggregation = aggregation_code is not None
         args.aggregation_code = aggregation_code if args.do_aggregation else Average.code()
 
-        for grouping in [FCMWithPCCGrouping]:
+        for grouping in GROUPING_STRATEGIES.values():
             args.grouping_code = grouping.code()
             is_similarity = grouping.is_similarity()
             n_clusters_or_sim = grouping.get_sim_list(args.dataset_code) if is_similarity else grouping.get_n_clusters_list(args.dataset_code)
@@ -68,26 +75,27 @@ def get_model_name():
     raise ValueError("Cannot infer model name")
 
 def test_best():
-    for aggregation_code in tqdm([None] + list(AGGREGATION_METHODS.keys()), desc='Testing best configurations'):
-        args.do_aggregation = aggregation_code is not None
-        args.aggregation_code = aggregation_code if args.do_aggregation else Average.code()
+    for aggregation_code in tqdm(list(AGGREGATION_METHODS.keys()), desc='Testing best configurations'):
+        for do_aggregation in [False, True]:
+            args.do_aggregation = do_aggregation
+            args.aggregation_code = aggregation_code
 
-        for grouping in GROUPING_STRATEGIES.values():
-            args.grouping_code = grouping.code()
-            args.trainer_code = get_trainer_code()
+            for grouping in GROUPING_STRATEGIES.values():
+                args.grouping_code = grouping.code()
+                args.trainer_code = get_trainer_code()
 
-            # Setting experiment folder
-            train_ds, _, _ = dataset_factory(args.dataset_code)
-            grouping_method = GROUPING_STRATEGIES[args.grouping_code].load_with_best_hyperparams(train_ds, get_model_name())
-            args.group_size = grouping_method.group_size
-            if grouping_method.is_similarity():
-                args.similarity_threshold = grouping_method.similarity_threshold
-            else:
-                args.n_clusters = grouping_method.n_clusters
+                # Setting experiment folder
+                train_ds, _, _ = dataset_factory(args.dataset_code)
+                grouping_method = GROUPING_STRATEGIES[args.grouping_code].load_with_best_hyperparams(train_ds, get_model_name())
+                args.group_size = grouping_method.group_size
+                if grouping_method.is_similarity():
+                    args.similarity_threshold = grouping_method.similarity_threshold
+                else:
+                    args.n_clusters = grouping_method.n_clusters
 
-            set_experiment_description(grouping)
+                set_experiment_description(grouping)
 
-            test()
+                test()
 
 def get_trainer_code():
     if args.dataloader_code == 'ae_grs':
